@@ -50,6 +50,14 @@ public:
 
     string role() const override { return "Staff"; }
     Position getPosition() const { return position; }
+    string getPositionString() const {
+        switch (position){
+            case Position :: Chef: return "Chef";
+            case Position :: DeliveryDriver: return "Delivery Driver";
+            case Position :: Manager: return "Manager";
+        }
+        return "Unknown";
+    }
 };
 
 class MenuItem {
