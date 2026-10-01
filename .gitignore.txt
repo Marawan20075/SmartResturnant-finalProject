@@ -1,0 +1,52 @@
+# Build output
+build/
+out/
+bin/
+Debug/
+Release/
+x64/
+x86/
+*.exe
+*.obj
+*.o
+*.ilk
+*.pdb
+*.exp
+*.lib
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Qt
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+Makefile*
+
+# vcpkg
+vcpkg_installed/
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.sln.docstates
+
+# VS Code
+.vscode/
+
+# CLion / JetBrains
+.idea/
+cmake-build-*/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local config / secrets
+*.env
+config.local.*
