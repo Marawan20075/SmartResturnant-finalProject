@@ -170,7 +170,7 @@ private:
 
     Database() {
         conn = make_unique<pqxx::connection>(
-            "dbname=smart_restaurant user=postgres password=yourpassword host=127.0.0.1 port=5432"
+            "dbname=smart_restaurant user=postgres password=1234 host=127.0.0.1 port=5432"
         );
     }
 
@@ -191,6 +191,101 @@ public:
         pqxx::work txn(*conn);
         txn.exec(sql);
         txn.commit();
+    }
+
+    vector<MenuItem> loadMenuItems()
+    {
+        vector<MenuItem> items;
+
+        pqxx::work txn(*conn);
+
+        pqxx::result result = txn.exec(
+            "SELECT id, name, price, available FROM menu_items"
+        );
+
+        for (auto row : result)
+        {
+            items.emplace_back(
+                row["id"].as<int>(),
+                row["name"].as<string>(),
+                row["price"].as<double>(),
+                row["available"].as<bool>()
+            );
+        }
+
+        txn.commit();
+
+        return items;
+    }
+
+
+    void addMenuItem(const string& name, double price, bool available)
+    {
+        pqxx::work txn(*conn);
+
+        txn.exec_params(
+            "INSERT INTO menu_items (name, price, available) VALUES ($1, $2, $3)",
+            name,
+            price,
+            available
+        );
+
+        txn.commit();
+    }
+
+
+    unique_ptr<User> findUserByEmail(const string& email)
+    {
+        pqxx::work txn(*conn);
+
+        pqxx::result result = txn.exec_params(
+            "SELECT id, name, email, role, address, position "
+            "FROM users WHERE email = $1",
+            email
+        );
+
+        if (result.empty())
+        {
+            return nullptr;
+        }
+
+        auto row = result[0];
+
+        string role = row["role"].as<string>();
+
+        if (role == "customer")
+        {
+            return make_unique<Customer>(
+                row["id"].as<int>(),
+                row["name"].as<string>(),
+                row["email"].as<string>(),
+                row["address"].is_null() ? "" : row["address"].as<string>()
+            );
+        }
+        else if (role == "staff")
+        {
+            string pos = row["position"].is_null()
+                ? ""
+                : row["position"].as<string>();
+
+            StaffMember::Position position;
+
+            if (pos == "Chef")
+                position = StaffMember::Position::Chef;
+            else if (pos == "Delivery Driver")
+                position = StaffMember::Position::DeliveryDriver;
+            else
+                position = StaffMember::Position::Manager;
+
+            return make_unique<StaffMember>(
+                row["id"].as<int>(),
+                row["name"].as<string>(),
+                row["email"].as<string>(),
+                position
+            );
+        }
+
+        return nullptr;
     }
 
     Database(const Database&) = delete;
