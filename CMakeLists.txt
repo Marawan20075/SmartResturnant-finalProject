@@ -15,6 +15,12 @@ add_executable(SmartRestaurant
     main.cpp
     mainwindow.cpp
     mainwindow.h
+    loginpage.cpp
+    loginpage.h
+    customerpage.cpp
+    customerpage.h
+    staffpage.cpp
+    staffpage.h
 )
 
 target_include_directories(SmartRestaurant PRIVATE ${CMAKE_SOURCE_DIR})

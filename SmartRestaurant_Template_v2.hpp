@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <optional>
 #include <cstdlib>
+#include <limits>
 
 using namespace std;
 
@@ -139,13 +140,39 @@ public:
     Order(int id, int customerId, OrderStatus status, string createdAt)
         : id(id), customerId(customerId), status(status), createdAt(move(createdAt)) {}
 
-    void addItem(const OrderItem& orderItem) 
-    { 
-        if (orderItem.quantity <= 0)
-            throw invalid_argument("Quantity must be positive ");
-        items.push_back(orderItem);
+    void addItem(const OrderItem& orderItem) {
+        if (orderItem.quantity <= 0) throw invalid_argument("Quantity must be greater than zero");
+
+        auto existing = find_if(items.begin(), items.end(), [&orderItem](const OrderItem& item) {
+            return item.item.getId() == orderItem.item.getId();
+        });
+
+        if (existing == items.end()) {
+            items.push_back(orderItem);
+        } else {
+            if (orderItem.quantity > numeric_limits<int>::max() - existing->quantity) throw overflow_error("Quantity is too large");
+            existing->quantity += orderItem.quantity;
+        }
     }
 
+    void setItemQuantity(int menuItemId, int quantity) {
+        if (quantity <= 0) throw invalid_argument("Quantity must be greater than zero");
+
+        auto item = find_if(items.begin(), items.end(), [menuItemId](const OrderItem& item) {
+            return item.item.getId() == menuItemId;
+        });
+
+        if (item == items.end())
+            throw out_of_range("Item is not in this order");
+
+        item->quantity = quantity;
+    }
+
+    void removeItem(int menuItemId) {
+        items.erase(remove_if(items.begin(), items.end(), [menuItemId](const OrderItem& item) {
+            return item.item.getId() == menuItemId;
+        }), items.end());
+    }
 
     double total() const {
         double sum = 0;
@@ -219,10 +246,10 @@ private:
     template <typename Row>
     static MenuItem menuItemFromRow(const Row& row) {
         return MenuItem(
-            row["id"].as<int>(),
-            row["name"].as<string>(),
-            row["price"].as<double>(),
-            row["available"].as<bool>()
+            row["id"].template as<int>(),
+            row["name"].template as<string>(),
+            row["price"].template as<double>(),
+            row["available"].template as<bool>()
         );
     }
 
@@ -644,23 +671,21 @@ public:
 
     // ---------- Orders ----------
 
-    Order createOrder(int customerId, const vector<OrderItem>& items) {
-        if (items.empty()) throw invalid_argument("An order must contain at least one item");
+    // A draft has no database ID until it is saved.
+    Order createOrder(int customerId) {
+        return Order(0, customerId);
+    }
 
-        vector<OrderItem> merged;
-        for (const auto& orderItem : items) {
-            if (orderItem.quantity <= 0)
-                throw invalid_argument("Quantity must be greater than zero");
-
-            auto it = find_if(merged.begin(), merged.end(), [&](const OrderItem& m) {
-                return m.item.getId() == orderItem.item.getId();
-            });
-            if (it != merged.end()) it->quantity += orderItem.quantity;
-            else merged.push_back(orderItem);
-        }
-
-        int orderId = db().insertOrder(customerId, merged);
+    Order saveOrder(const Order& order) {
+        int orderId = db().insertOrder(order.getCustomerId(), order.getItems());
         return requireOrder(orderId);
+    }
+
+    // Retain the existing create-and-save API for other callers.
+    Order createOrder(int customerId, const vector<OrderItem>& items) {
+        Order order = createOrder(customerId);
+        for (const auto& item : items) order.addItem(item);
+        return saveOrder(order);
     }
 
     optional<Order> findOrder(int orderId) { return db().loadOrderById(orderId); }
@@ -688,6 +713,20 @@ public:
     vector<Order> getAllOrders() { return db().loadAllOrders(); }
 
     // ---------- Menu ----------
+
+    vector<MenuItem> getAvailableMenuItems() {
+        vector<MenuItem> menuItems = Database::instance().loadMenuItems();
+        vector<MenuItem> availableMenuItems;
+        
+        for (const MenuItem& menuItem: menuItems) {
+            if (menuItem.isAvailable()) {
+                availableMenuItems.push_back(menuItem);
+            }
+        }
+        
+        return availableMenuItems;
+    }
+
 
     vector<MenuItem> getAvailableMenu() { return db().loadAvailableMenuItems(); }
     vector<MenuItem> getFullMenu() { return db().loadAllMenuItems(); }
