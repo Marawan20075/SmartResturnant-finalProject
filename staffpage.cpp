@@ -49,10 +49,10 @@ StaffPage::StaffPage(QWidget *parent) : QWidget(parent) {
 }
 
 void StaffPage::refreshOrders() {
-    std::vector<Order> orders;
+    vector<Order> orders;
     try {
         orders = OrderManager::instance().getActiveOrders();
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         QMessageBox::critical(this, "Database Error", QString::fromUtf8(error.what()));
         return;
     }
@@ -74,7 +74,7 @@ void StaffPage::refreshOrders() {
         connect(advanceBtn, &QPushButton::clicked, [this, orderId]() {
             try {
                 OrderManager::instance().advanceOrder(orderId);
-            } catch (const std::exception &error) {
+            } catch (const exception &error) {
                 QMessageBox::warning(this, "Cannot Advance Order", QString::fromUtf8(error.what()));
             }
             refreshOrders();
@@ -92,11 +92,11 @@ void StaffPage::createTestOrder() {
                                  "There are no available menu items. Run seed.sql first.");
             return;
         }
-        // Customer #1 is created by seed.sql, as in master's demo action.
+
         Order order = manager.createOrder(1);
         order.addItem(OrderItem(menu.front(), 2));
         manager.saveOrder(order);
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         QMessageBox::critical(this, "Could Not Create Order", QString::fromUtf8(error.what()));
     }
     refreshOrders();

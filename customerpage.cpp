@@ -107,8 +107,7 @@ CustomerPage::CustomerPage(QWidget *parent) : QWidget(parent) {
 }
 
 void CustomerPage::startCustomerSession(int customerId) {
-    if (customerId <= 0)
-        throw std::invalid_argument("A valid customer ID is required");
+    if (customerId <= 0) throw invalid_argument("A valid customer ID is required");
     cartOrder = OrderManager::instance().createOrder(customerId);
     statusLabel->clear();
     refreshCart();
@@ -126,7 +125,7 @@ void CustomerPage::refreshOrders() {
             customerTable->setItem(row, 0, new QTableWidgetItem(QString::number(order.getId())));
             customerTable->setItem(row, 1, new QTableWidgetItem(statusToText(order.getStatus())));
         }
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         statusLabel->setText("Could not load orders: " + QString::fromUtf8(error.what()));
     }
 }
@@ -144,19 +143,19 @@ void CustomerPage::refreshMenuItems() {
             menuTable->setItem(row, 2, new QTableWidgetItem(QString::number(item.getPrice(), 'f', 2)));
         }
         emptyLabel->setText(menuItems.empty() ? "No menu items are currently available." : "");
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         emptyLabel->setText("Could not load the menu. Use Refresh Menu to try again.");
         statusLabel->setText(QString::fromUtf8(error.what()));
     }
 }
 
-std::optional<int> CustomerPage::selectedItemId(QTableWidget *table) const {
+optional<int> CustomerPage::selectedItemId(QTableWidget *table) const {
     const int row = table->currentRow();
     if (row < 0 || !table->item(row, 0))
-        return std::nullopt;
+        return nullopt;
     bool valid = false;
     const int id = table->item(row, 0)->text().toInt(&valid);
-    return valid ? std::optional<int>(id) : std::nullopt;
+    return valid ? optional<int>(id) : nullopt;
 }
 
 const OrderItem *CustomerPage::selectedCartItem() const {
@@ -164,7 +163,7 @@ const OrderItem *CustomerPage::selectedCartItem() const {
     if (!id)
         return nullptr;
     const auto &items = cartOrder->getItems();
-    const auto item = std::find_if(items.begin(), items.end(), [id](const OrderItem &entry) {
+    const auto item = find_if(items.begin(), items.end(), [id](const OrderItem &entry) {
         return entry.item.getId() == *id;
     });
     return item == items.end() ? nullptr : &*item;
@@ -199,7 +198,7 @@ void CustomerPage::addToCart() {
         statusLabel->setText("Select a menu item first.");
         return;
     }
-    const auto item = std::find_if(menuItems.begin(), menuItems.end(), [id](const MenuItem &entry) {
+    const auto item = find_if(menuItems.begin(), menuItems.end(), [id](const MenuItem &entry) {
         return entry.getId() == *id;
     });
     if (item == menuItems.end())
@@ -208,7 +207,7 @@ void CustomerPage::addToCart() {
         cartOrder->addItem(OrderItem(*item, 1));
         refreshCart();
         statusLabel->setText(QString::fromStdString(item->getName()) + " added to cart.");
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         statusLabel->setText(QString::fromUtf8(error.what()));
     }
 }
@@ -219,7 +218,7 @@ void CustomerPage::increaseQty() {
         statusLabel->setText("Select a cart item first.");
         return;
     }
-    if (item->quantity == std::numeric_limits<int>::max()) {
+    if (item->quantity == numeric_limits<int>::max()) {
         statusLabel->setText("Quantity is too large.");
         return;
     }
@@ -268,7 +267,7 @@ void CustomerPage::checkout() {
         refreshOrders();
         tabWidget->setCurrentIndex(2);
         statusLabel->setText("Order #" + QString::number(savedOrder.getId()) + " placed.");
-    } catch (const std::exception &error) {
+    } catch (const exception &error) {
         statusLabel->setText("Could not place the order: " + QString::fromUtf8(error.what()));
     }
 }

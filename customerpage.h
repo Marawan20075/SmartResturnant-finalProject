@@ -28,11 +28,11 @@ private slots:
     
 private:
     void refreshCart();
-    std::optional<int> selectedItemId(QTableWidget *table) const;
+    optional<int> selectedItemId(QTableWidget *table) const;
     const OrderItem *selectedCartItem() const;
 
-    std::optional<Order> cartOrder;
-    std::vector<MenuItem> menuItems;
+    optional<Order> cartOrder;
+    vector<MenuItem> menuItems;
     QTabWidget *tabWidget = nullptr;
     QTableWidget *menuTable = nullptr;
     QTableWidget *cartTable = nullptr;
