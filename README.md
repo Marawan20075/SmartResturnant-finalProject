@@ -41,10 +41,36 @@ OrderManager and the core classes.
    - PostgreSQL
    - libpqxx (`vcpkg install libpqxx` on Windows, `apt install libpqxx-dev` on Linux)
    - Qt (for the GUI team)
-3. Run `database/schema.sql` against your PostgreSQL instance.
-4. Update the connection string inside `Database`'s constructor in
-   `SmartRestaurant_Template_v2.hpp` with your local credentials.
-5. Each member works on their own branch:
+3. Create the database and load the schema and test data:
+   ```
+   createdb -U postgres smart_restaurant
+   psql -U postgres -d smart_restaurant -f schema.sql
+   psql -U postgres -d smart_restaurant -f seed.sql
+   ```
+   If you already ran an older `schema.sql` and want to keep your data, run
+   `migrate_existing_db.sql` once instead of `schema.sql`.
+4. Tell the app how to connect. Credentials are **not** stored in the source
+   code; set environment variables instead (never commit real passwords):
+   - Either `SMART_RESTAURANT_DB`, a full libpq connection string, e.g.
+     `host=127.0.0.1 port=5432 dbname=smart_restaurant user=postgres password=...`
+   - Or the standard PostgreSQL variables `PGHOST`, `PGPORT`, `PGDATABASE`,
+     `PGUSER`, `PGPASSWORD` (defaults: `127.0.0.1`, `5432`, `smart_restaurant`,
+     `postgres`, no password). A `pgpass.conf` file also works for the password.
+
+   PowerShell example (current session only):
+   ```
+   $env:PGPASSWORD = "your-local-password"
+   ```
+   If the connection fails, the app shows a "Database Connection Error" dialog
+   with the reason and exits.
+5. Optional: build and run the database integration tests (they create and then
+   delete their own test rows):
+   ```
+   cmake -DSMART_RESTAURANT_BUILD_TESTS=ON ..
+   cmake --build . --target DatabaseTests
+   ./DatabaseTests
+   ```
+6. Each member works on their own branch:
    ```
    git checkout -b <your-name>-<feature>
    ```
