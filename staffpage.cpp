@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QTabWidget>
 #include <QHeaderView>
+#include <QMessageBox>
 
 static QString statusToText(OrderStatus status) {
     switch (status) {
@@ -24,6 +25,7 @@ StaffPage::StaffPage(QWidget *parent) : QWidget(parent) {
     staffTable = new QTableWidget(0, 3);
     staffTable->setHorizontalHeaderLabels({"Order ID", "Status", "Action"});
     staffTable->horizontalHeader()->setStretchLastSection(true);
+    staffTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
     tabWidget->addTab(staffTable, "Staff Dashboard");
 
@@ -47,11 +49,17 @@ StaffPage::StaffPage(QWidget *parent) : QWidget(parent) {
 }
 
 void StaffPage::refreshOrders() {
-    auto &orders = OrderManager::instance().getAllOrders();
+    std::vector<Order> orders;
+    try {
+        orders = OrderManager::instance().getActiveOrders();
+    } catch (const std::exception &error) {
+        QMessageBox::critical(this, "Database Error", QString::fromUtf8(error.what()));
+        return;
+    }
 
     staffTable->setRowCount(0);
 
-    for (auto &order : orders) {
+    for (const auto &order : orders) {
         int orderId = order.getId();
         OrderStatus currentStatus = order.getStatus();
         QString statusText = statusToText(currentStatus);
@@ -63,24 +71,33 @@ void StaffPage::refreshOrders() {
 
         QPushButton *advanceBtn = new QPushButton("Advance Status");
 
-        if (currentStatus == OrderStatus::Delivered) {
-            advanceBtn->setEnabled(false);
-            advanceBtn->setText("Completed");
-        } else {
-            connect(advanceBtn, &QPushButton::clicked, [this, orderId]() {
+        connect(advanceBtn, &QPushButton::clicked, [this, orderId]() {
+            try {
                 OrderManager::instance().advanceOrder(orderId);
-                this->refreshOrders();
-            });
-        }
+            } catch (const std::exception &error) {
+                QMessageBox::warning(this, "Cannot Advance Order", QString::fromUtf8(error.what()));
+            }
+            refreshOrders();
+        });
         staffTable->setCellWidget(staffRow, 2, advanceBtn);
     }
 }
 
 void StaffPage::createTestOrder() {
-    auto &manager = OrderManager::instance();
-    Order order = manager.createOrder(1);
-    MenuItem item(1, "Test Burger", 9.99, true);
-    order.addItem(OrderItem(item, 2));
-    manager.saveOrder(order);
+    try {
+        auto &manager = OrderManager::instance();
+        const auto menu = manager.getAvailableMenu();
+        if (menu.empty()) {
+            QMessageBox::warning(this, "No Menu Items",
+                                 "There are no available menu items. Run seed.sql first.");
+            return;
+        }
+        // Customer #1 is created by seed.sql, as in master's demo action.
+        Order order = manager.createOrder(1);
+        order.addItem(OrderItem(menu.front(), 2));
+        manager.saveOrder(order);
+    } catch (const std::exception &error) {
+        QMessageBox::critical(this, "Could Not Create Order", QString::fromUtf8(error.what()));
+    }
     refreshOrders();
 }

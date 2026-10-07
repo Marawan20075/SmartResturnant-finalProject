@@ -119,13 +119,15 @@ void CustomerPage::startCustomerSession(int customerId) {
 
 void CustomerPage::refreshOrders() {
     customerTable->setRowCount(0);
-    for (const auto &order : OrderManager::instance().getAllOrders()) {
-        if (order.getCustomerId() != cartOrder->getCustomerId())
-            continue;
-        const int row = customerTable->rowCount();
-        customerTable->insertRow(row);
-        customerTable->setItem(row, 0, new QTableWidgetItem(QString::number(order.getId())));
-        customerTable->setItem(row, 1, new QTableWidgetItem(statusToText(order.getStatus())));
+    try {
+        for (const auto &order : OrderManager::instance().getCustomerOrders(cartOrder->getCustomerId())) {
+            const int row = customerTable->rowCount();
+            customerTable->insertRow(row);
+            customerTable->setItem(row, 0, new QTableWidgetItem(QString::number(order.getId())));
+            customerTable->setItem(row, 1, new QTableWidgetItem(statusToText(order.getStatus())));
+        }
+    } catch (const std::exception &error) {
+        statusLabel->setText("Could not load orders: " + QString::fromUtf8(error.what()));
     }
 }
 
@@ -172,16 +174,18 @@ void CustomerPage::refreshCart() {
     const auto selectedId = selectedItemId(cartTable);
     cartTable->setRowCount(0);
 
-    for (const auto &entry : cartOrder->getItems()) {
-        const int row = cartTable->rowCount();
-        cartTable->insertRow(row);
-        cartTable->setItem(row, 0, new QTableWidgetItem(QString::number(entry.item.getId())));
-        cartTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(entry.item.getName())));
-        cartTable->setItem(row, 2, new QTableWidgetItem(QString::number(entry.quantity)));
-        cartTable->setItem(row, 3, new QTableWidgetItem(QString::number(entry.item.getPrice(), 'f', 2)));
-        cartTable->setItem(row, 4, new QTableWidgetItem(QString::number(entry.subtotal(), 'f', 2)));
+    if (cartOrder) {
+        for (const auto &entry : cartOrder->getItems()) {
+            const int row = cartTable->rowCount();
+            cartTable->insertRow(row);
+            cartTable->setItem(row, 0, new QTableWidgetItem(QString::number(entry.item.getId())));
+            cartTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(entry.item.getName())));
+            cartTable->setItem(row, 2, new QTableWidgetItem(QString::number(entry.quantity)));
+            cartTable->setItem(row, 3, new QTableWidgetItem(QString::number(entry.item.getPrice(), 'f', 2)));
+            cartTable->setItem(row, 4, new QTableWidgetItem(QString::number(entry.subtotal(), 'f', 2)));
 
-        if (selectedId && *selectedId == entry.item.getId()) cartTable->selectRow(row);
+            if (selectedId && *selectedId == entry.item.getId()) cartTable->selectRow(row);
+        }
     }
 
     const double total = cartOrder ? cartOrder->total() : 0.0;
@@ -257,14 +261,13 @@ void CustomerPage::checkout() {
     }
     try {
         auto &manager = OrderManager::instance();
-        const int orderId = cartOrder->getId();
         const int customerId = cartOrder->getCustomerId();
-        manager.saveOrder(*cartOrder);
+        const Order savedOrder = manager.saveOrder(*cartOrder);
         cartOrder = manager.createOrder(customerId);
         refreshCart();
         refreshOrders();
         tabWidget->setCurrentIndex(2);
-        statusLabel->setText("Order #" + QString::number(orderId) + " placed.");
+        statusLabel->setText("Order #" + QString::number(savedOrder.getId()) + " placed.");
     } catch (const std::exception &error) {
         statusLabel->setText("Could not place the order: " + QString::fromUtf8(error.what()));
     }

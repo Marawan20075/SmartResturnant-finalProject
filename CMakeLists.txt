@@ -29,3 +29,10 @@ target_link_libraries(SmartRestaurant PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     libpqxx::pqxx
 )
+
+option(SMART_RESTAURANT_BUILD_TESTS "Build the database integration tests" OFF)
+if(SMART_RESTAURANT_BUILD_TESTS)
+    add_executable(DatabaseTests tests/database_tests.cpp)
+    target_include_directories(DatabaseTests PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(DatabaseTests PRIVATE libpqxx::pqxx)
+endif()
