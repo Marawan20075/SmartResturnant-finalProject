@@ -1,105 +1,54 @@
 #include "mainwindow.h"
-#include "SmartRestaurant_Template_v2.hpp"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QWidget>
-#include <QHeaderView>
+#include "loginpage.h"
+#include "customerpage.h"
+#include "staffpage.h"
+#include <QStackedWidget>
+#include <QRandomGenerator>
 
-static QString statusToText(OrderStatus status) {
-    switch (status) {
-    case OrderStatus::Pending: return "Pending";
-    case OrderStatus::Preparing: return "Preparing";
-    case OrderStatus::OutForDelivery: return "Out for Delivery";
-    case OrderStatus::Delivered: return "Delivered";
-    case OrderStatus::Cancelled: return "Cancelled";
-    }
-    return "Unknown";
-}
-
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget *parent): QMainWindow(parent) {
     setWindowTitle("Smart Restaurant - Order Tracking");
     resize(700, 500);
 
+    pages = new QStackedWidget(this);
 
-    tabWidget = new QTabWidget(this);
+    loginPage = new LoginPage(pages);
+    customerPage = new CustomerPage(pages);
+    staffPage = new StaffPage(pages);
 
+    pages->addWidget(loginPage);
+    pages->addWidget(customerPage);
+    pages->addWidget(staffPage);
 
-    customerTable = new QTableWidget(0, 2);
-    customerTable->setHorizontalHeaderLabels({"Order ID", "Status"});
-    customerTable->horizontalHeader()->setStretchLastSection(true);
+    setCentralWidget(pages);
+    pages->setCurrentWidget(loginPage);
 
-
-    staffTable = new QTableWidget(0, 3);
-    staffTable->setHorizontalHeaderLabels({"Order ID", "Status", "Action"});
-    staffTable->horizontalHeader()->setStretchLastSection(true);
-    tabWidget->addTab(customerTable, "Customer Tracking");
-    tabWidget->addTab(staffTable, "Staff Dashboard");
-
-    refreshButton = new QPushButton("Refresh");
-    testOrderButton = new QPushButton("Create Test Order");
-
-    connect(refreshButton, &QPushButton::clicked, this, &MainWindow::refreshOrders);
-    connect(testOrderButton, &QPushButton::clicked, this, &MainWindow::createTestOrder);
-
-    auto *buttonRow = new QHBoxLayout();
-    buttonRow->addWidget(refreshButton);
-    buttonRow->addWidget(testOrderButton);
-
-    auto *layout = new QVBoxLayout();
-    layout->addWidget(tabWidget);
-    layout->addLayout(buttonRow);
-
-    auto *central = new QWidget();
-    central->setLayout(layout);
-    setCentralWidget(central);
-
-    refreshOrders();
+    connect(loginPage, &LoginPage::staffLoginRequested,
+            this, &MainWindow::handleStaffLoginRequested);
+    connect(loginPage, &LoginPage::customerLoginRequested,
+            this, &MainWindow::handleCustomerLoginRequested);
 }
 
-void MainWindow::refreshOrders() {
-    auto &orders = OrderManager::instance().getAllOrders();
-
-
-    customerTable->setRowCount(0);
-    staffTable->setRowCount(0);
-
-    for (auto &order : orders) {
-        int orderId = order.getId();
-        OrderStatus currentStatus = order.getStatus();
-        QString statusText = statusToText(currentStatus);
-
-
-        int custRow = customerTable->rowCount();
-        customerTable->insertRow(custRow);
-        customerTable->setItem(custRow, 0, new QTableWidgetItem(QString::number(orderId)));
-        customerTable->setItem(custRow, 1, new QTableWidgetItem(statusText));
-
-
-        int staffRow = staffTable->rowCount();
-        staffTable->insertRow(staffRow);
-        staffTable->setItem(staffRow, 0, new QTableWidgetItem(QString::number(orderId)));
-        staffTable->setItem(staffRow, 1, new QTableWidgetItem(statusText));
-
-
-        QPushButton *advanceBtn = new QPushButton("Advance Status");
-
-        if (currentStatus == OrderStatus::Delivered) {
-            advanceBtn->setEnabled(false);
-            advanceBtn->setText("Completed");
-        } else {
-
-            connect(advanceBtn, &QPushButton::clicked, [this, orderId]() {
-                OrderManager::instance().advanceOrder(orderId);
-                this->refreshOrders();
-            });
-        }
-        staffTable->setCellWidget(staffRow, 2, advanceBtn);
+void MainWindow::handleCustomerLoginRequested(const QString &email) {
+    if (email.trimmed().isEmpty() || !email.contains('@')) {
+        loginPage->showError("Enter a valid email.");
+        return;
     }
+
+    // Mohemmm very important todo: only for now should be replaced when UserManager is implemented 
+    const int customerId = QRandomGenerator::global()->bounded(1, 1000000);
+
+    customerPage->startCustomerSession(customerId);
+    loginPage->showError("");
+    pages->setCurrentWidget(customerPage);
 }
 
-void MainWindow::createTestOrder() {
-    Order &order = OrderManager::instance().createOrder(1);
-    MenuItem item(1, "Test Burger", 9.99, true);
-    order.addItem(OrderItem(item, 2));
-    refreshOrders();
+void MainWindow::handleStaffLoginRequested(const QString &email) {
+    if (email.trimmed().isEmpty() || !email.contains('@')) {
+        loginPage->showError("Enter a valid email.");
+        return;
+    }
+
+    staffPage->refreshOrders();
+    loginPage->showError("");
+    pages->setCurrentWidget(staffPage);
 }

@@ -1,29 +1,26 @@
 #pragma once
+
 #include <QMainWindow>
-#include <QLabel>
-#include <QTableWidget>
-#include <QPushButton>
-#include <QTabWidget>
+#include <QString>
+
+class QStackedWidget;
+class LoginPage;
+class CustomerPage;
+class StaffPage;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
 
 private slots:
-    void refreshOrders();
-    void createTestOrder();
-
+    void handleCustomerLoginRequested(const QString &email);
+    void handleStaffLoginRequested(const QString &email);
 
 private:
-    QLabel *statusLabel;
-
-
-    QTabWidget *tabWidget;
-    QTableWidget *customerTable;
-    QTableWidget *staffTable;
-
-    QPushButton *refreshButton;
-    QPushButton *testOrderButton;
+    QStackedWidget *pages = nullptr;
+    LoginPage *loginPage = nullptr;
+    CustomerPage *customerPage = nullptr;
+    StaffPage *staffPage = nullptr;
 };

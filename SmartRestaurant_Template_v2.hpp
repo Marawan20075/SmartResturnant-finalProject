@@ -5,6 +5,7 @@
 #include <memory>
 #include <algorithm>
 #include <stdexcept>
+#include <limits>
 
 using namespace std;
 
@@ -99,7 +100,39 @@ private:
 public:
     Order(int id, int customerId) : id(id), customerId(customerId), status(OrderStatus::Pending) {}
 
-    void addItem(const OrderItem& orderItem) { items.push_back(orderItem); }
+    void addItem(const OrderItem& orderItem) {
+        if (orderItem.quantity <= 0) throw invalid_argument("Quantity must be greater than zero");
+
+        auto existing = find_if(items.begin(), items.end(), [&orderItem](const OrderItem& item) {
+            return item.item.getId() == orderItem.item.getId();
+        });
+
+        if (existing == items.end()) {
+            items.push_back(orderItem);
+        } else {
+            if (orderItem.quantity > numeric_limits<int>::max() - existing->quantity) throw overflow_error("Quantity is too large");
+            existing->quantity += orderItem.quantity;
+        }
+    }
+
+    void setItemQuantity(int menuItemId, int quantity) {
+        if (quantity <= 0) throw invalid_argument("Quantity must be greater than zero");
+
+        auto item = find_if(items.begin(), items.end(), [menuItemId](const OrderItem& item) {
+            return item.item.getId() == menuItemId;
+        });
+
+        if (item == items.end())
+            throw out_of_range("Item is not in this order");
+
+        item->quantity = quantity;
+    }
+
+    void removeItem(int menuItemId) {
+        items.erase(remove_if(items.begin(), items.end(), [menuItemId](const OrderItem& item) {
+            return item.item.getId() == menuItemId;
+        }), items.end());
+    }
 
     double total() const {
         double sum = 0;
@@ -127,41 +160,6 @@ public:
     int getId() const { return id; }
     int getCustomerId() const { return customerId; }
     const vector<OrderItem>& getItems() const { return items; }
-};
-
-class OrderManager {
-private:
-    vector<Order> orders;
-    int nextId = 1;
-
-    OrderManager() = default;
-
-public:
-    static OrderManager& instance() {
-        static OrderManager mgr;
-        return mgr;
-    }
-
-    Order& createOrder(int customerId) {
-        orders.emplace_back(nextId++, customerId);
-        return orders.back();
-    }
-
-    Order* findOrder(int orderId) {
-        auto it = find_if(orders.begin(), orders.end(),
-            [orderId](const Order& o) { return o.getId() == orderId; });
-        return it != orders.end() ? &(*it) : nullptr;
-    }
-
-    void advanceOrder(int orderId) {
-        if (auto* o = findOrder(orderId)) o->advanceStatus();
-    }
-
-    void cancelOrder(int orderId) {
-        if (auto* o = findOrder(orderId)) o->cancel();
-    }
-
-    vector<Order>& getAllOrders() { return orders; }
 };
 
 class Database {
@@ -290,4 +288,55 @@ public:
 
     Database(const Database&) = delete;
     void operator=(const Database&) = delete;
+};
+
+class OrderManager {
+private:
+    vector<Order> orders;
+    int nextId = 1;
+
+    OrderManager() = default;
+
+public:
+    static OrderManager& instance() {
+        static OrderManager mgr;
+        return mgr;
+    }
+
+    Order createOrder(int customerId) {
+        return Order(nextId++, customerId);
+    }
+
+    void saveOrder(const Order& order) {
+        orders.push_back(order);
+    }
+
+    Order* findOrder(int orderId) {
+        auto it = find_if(orders.begin(), orders.end(),
+            [orderId](const Order& o) { return o.getId() == orderId; });
+        return it != orders.end() ? &(*it) : nullptr;
+    }
+
+    void advanceOrder(int orderId) {
+        if (auto* o = findOrder(orderId)) o->advanceStatus();
+    }
+
+    void cancelOrder(int orderId) {
+        if (auto* o = findOrder(orderId)) o->cancel();
+    }
+
+    vector<MenuItem> getAvailableMenuItems() {
+        vector<MenuItem> menuItems = Database::instance().loadMenuItems();
+        vector<MenuItem> availableMenuItems;
+        
+        for (const MenuItem& menuItem: menuItems) {
+            if (menuItem.isAvailable()) {
+                availableMenuItems.push_back(menuItem);
+            }
+        }
+        
+        return availableMenuItems;
+    }
+
+    vector<Order>& getAllOrders() { return orders; }
 };
