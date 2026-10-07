@@ -16,6 +16,7 @@ protected:
     string name;
     string email;
 
+
 public:
     User(int id, string name, string email)
         : id(id), name(move(name)), email(move(email)) {}
@@ -138,7 +139,13 @@ public:
     Order(int id, int customerId, OrderStatus status, string createdAt)
         : id(id), customerId(customerId), status(status), createdAt(move(createdAt)) {}
 
-    void addItem(const OrderItem& orderItem) { items.push_back(orderItem); }
+    void addItem(const OrderItem& orderItem) 
+    { 
+        if (orderItem.quantity <= 0)
+            throw invalid_argument("Quantity must be positive ");
+        items.push_back(orderItem);
+    }
+
 
     double total() const {
         double sum = 0;
