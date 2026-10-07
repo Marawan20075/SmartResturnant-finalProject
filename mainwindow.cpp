@@ -3,7 +3,6 @@
 #include "customerpage.h"
 #include "staffpage.h"
 #include <QStackedWidget>
-#include <QRandomGenerator>
 
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent) {
     setWindowTitle("Smart Restaurant - Order Tracking");
@@ -34,12 +33,23 @@ void MainWindow::handleCustomerLoginRequested(const QString &email) {
         return;
     }
 
-    // Mohemmm very important todo: only for now should be replaced when UserManager is implemented 
-    const int customerId = QRandomGenerator::global()->bounded(1, 1000000);
+    try {
+        auto user = OrderManager::instance().findUserByEmail(email.trimmed().toStdString());
+        if (!user) {
+            loginPage->showError("Email not found.");
+            return;
+        }
+        if (user->role() != "Customer") {
+            loginPage->showError("This is a staff email. Use the Staff tab.");
+            return;
+        }
 
-    customerPage->startCustomerSession(customerId);
-    loginPage->showError("");
-    pages->setCurrentWidget(customerPage);
+        customerPage->startCustomerSession(user->getId());
+        loginPage->showError("");
+        pages->setCurrentWidget(customerPage);
+    } catch (const std::exception &error) {
+        loginPage->showError("Could not log in: " + QString::fromUtf8(error.what()));
+    }
 }
 
 void MainWindow::handleStaffLoginRequested(const QString &email) {
@@ -48,7 +58,21 @@ void MainWindow::handleStaffLoginRequested(const QString &email) {
         return;
     }
 
-    staffPage->refreshOrders();
-    loginPage->showError("");
-    pages->setCurrentWidget(staffPage);
+    try {
+        auto user = OrderManager::instance().findUserByEmail(email.trimmed().toStdString());
+        if (!user) {
+            loginPage->showError("Email not found.");
+            return;
+        }
+        if (user->role() != "Staff") {
+            loginPage->showError("This is a customer email. Use the Customer tab.");
+            return;
+        }
+
+        staffPage->refreshOrders();
+        loginPage->showError("");
+        pages->setCurrentWidget(staffPage);
+    } catch (const std::exception &error) {
+        loginPage->showError("Could not log in: " + QString::fromUtf8(error.what()));
+    }
 }
