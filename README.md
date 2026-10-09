@@ -41,6 +41,12 @@ OrderManager and the core classes.
    - PostgreSQL
    - libpqxx (`vcpkg install libpqxx` on Windows, `apt install libpqxx-dev` on Linux)
    - Qt (for the GUI team)
+
+   On Windows with a Qt MinGW kit, the build copies libpqxx's runtime DLLs
+   (libpq, libstdc++, libwinpthread, OpenSSL, ...) next to the exe. This stops
+   the "entry point nanosleep64 could not be located" error, which happens
+   when libpqxx (e.g. from MSYS2) was built with a newer MinGW than the Qt kit.
+   If you still see it, delete the build folder and run CMake again.
 3. Create the database and load the schema and test data:
    ```
    createdb -U postgres smart_restaurant
